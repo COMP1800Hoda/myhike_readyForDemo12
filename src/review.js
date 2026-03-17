@@ -1,6 +1,7 @@
 import { db } from "./firebaseConfig.js";
 import { auth } from "./firebaseConfig.js";
 import { doc, getDoc, collection, addDoc, serverTimestamp } from "firebase/firestore";
+import * as bootstrap from "bootstrap";
 
 //-----------------------------------------------------------
 // Get hike ID from Local Storage
@@ -56,10 +57,11 @@ function manageStars() {
 //---------------------------------------------------------------------
 // Function to write review data into Firestore
 // Triggered when the authenticated user clicks the "Submit" button
-// Collects form data and adds a new document to the "reviews" collection
-// with the hikeDocID, userID, and other review details
+// Collects form data and adds a new document to the selected hike's
+// "reviews" subcollection: hikes/{hikeDocID}/reviews/{reviewDocID}
 // Redirects to eachHike page upon success
 //---------------------------------------------------------------------
+
 async function writeReview() {
     console.log("Inside write review");
 
@@ -83,18 +85,16 @@ async function writeReview() {
         return;
     }
 
+    // get a pointer to the user who is logged in
     const user = auth.currentUser;
 
     if (user) {
         try {
             const userID = user.uid;
 
-            // 📝 Add a new review document
-            // Extra: Let’s toss in the server timestamp as well.   
-            // We can do this with one extra line of code.   
-            // Reference: https://cloud.google.com/firestore/docs/manage-data/add-data#server_timestamp 
-            await addDoc(collection(db, "reviews"), {
-                hikeDocID: hikeDocID,   // make sure hikeDocID is defined globally or passed in
+            // ✅ Store review as subcollection under this hike
+            // Path: hikes/{hikeDocID}/reviews/{autoReviewID}
+            await addDoc(collection(db, "hikes", hikeDocID, "reviews"), {
                 userID: userID,
                 title: hikeTitle,
                 level: hikeLevel,
@@ -108,14 +108,16 @@ async function writeReview() {
 
             console.log("Review successfully written!");
 
-            window.location.href = `eachHike.html?docID=${hikeDocID}`;
 
-            // 🎉 Optional: Say thank-you in a new page
-            //window.location.href = "thanks.html"; // redirect to thank-you page
+            // Show thank-you modal
+            const thankYouModalEl = document.getElementById("thankYouModal");
+            const thankYouModal = new bootstrap.Modal(thankYouModalEl);
+            thankYouModal.show();
 
-            // 🎉 Optional: Show thank-you modal instead of redirect
-            //const thankYouModal = new bootstrap.Modal(document.getElementById("thankYouModal"));
-            //thankYouModal.show();
+            // Redirect AFTER user closes the modal
+            thankYouModalEl.addEventListener("hidden.bs.modal", () => {
+                window.location.href = `eachHike.html?docID=${hikeDocID}`;
+            }, { once: true });
 
         } catch (error) {
             console.error("Error adding review:", error);

@@ -55,72 +55,75 @@ function saveHikeDocumentIDAndRedirect() {
 }
 
 async function populateReviews() {
-    console.log("test");
-    const hikeCardTemplate = document.getElementById("reviewCardTemplate");
-    const hikeCardGroup = document.getElementById("reviewCardGroup");
+  console.log("test");
+  const reviewCardTemplate = document.getElementById("reviewCardTemplate");
+  const reviewCardGroup = document.getElementById("reviewCardGroup");
 
-    // Get hike ID from the URL (e.g. ?docID=abc123)
-    const params = new URL(window.location.href);
-    const hikeID = params.searchParams.get("docID");
-    if (!hikeID) {
-        console.warn("No hike ID found in URL.");
-        return;
-    }
+  // Get hike ID from the URL (e.g. ?docID=abc123)
+  const params = new URL(window.location.href);
+  const hikeID = params.searchParams.get("docID");
 
-    try {
-        // Build the query for reviews that match this hikeDocID
-        const q = query(collection(db, "reviews"), where("hikeDocID", "==", hikeID));
-        const querySnapshot = await getDocs(q);
+  if (!hikeID) {
+    console.warn("No hike ID found in URL.");
+    return;
+  }
 
-        console.log("Found", querySnapshot.size, "reviews");
+  try {
+    // Sub-collection path: hikes/{hikeID}/reviews
+    const reviewsRef = collection(db, "hikes", hikeID, "reviews");
 
-        querySnapshot.forEach((docSnap) => {
+    // Optional: order by timestamp (recommended)
+    // const q = query(reviewsRef, orderBy("timestamp", "desc"));
+    // const querySnapshot = await getDocs(q);
 
-            // Extract all the data from Firestore document
-            const data = docSnap.data();
-            const title = data.title || "(No title)";
-            const level = data.level || "(Not specified)";
-            const season = data.season || "(Not specified)";
-            const description = data.description || "";
-            const flooded = data.flooded || "(unknown)";
-            const scrambled = data.scrambled || "(unknown)";
-            const rating = data.rating || 0;
+    const querySnapshot = await getDocs(reviewsRef);
 
-            // Format the time
-            let time = "";
-            if (data.timestamp?.toDate) {
-                time = data.timestamp.toDate().toLocaleString();
-            }
+    console.log("Found", querySnapshot.size, "reviews");
 
-            // Clone the template and fill in the fields
-            const reviewCard = hikeCardTemplate.content.cloneNode(true);
+    querySnapshot.forEach((docSnap) => {
+      const data = docSnap.data();
 
-            // Populate the different elements in the card with data
-            reviewCard.querySelector(".title").textContent = title;
-            reviewCard.querySelector(".time").textContent = time;
-            reviewCard.querySelector(".level").textContent = `Level: ${level}`;
-            reviewCard.querySelector(".season").textContent = `Season: ${season}`;
-            reviewCard.querySelector(".scrambled").textContent = `Scrambled: ${scrambled}`;
-            reviewCard.querySelector(".flooded").textContent = `Flooded: ${flooded}`;
-            reviewCard.querySelector(".description").textContent = `Description: ${description}`;
+      const title = data.title || "(No title)";
+      const level = data.level || "(Not specified)";
+      const season = data.season || "(Not specified)";
+      const description = data.description || "";
+      const flooded = data.flooded ?? "(unknown)";
+      const scrambled = data.scrambled ?? "(unknown)";
+      const rating = Number(data.rating ?? 0);
 
-            // ⭐ Populate the star rating dynamically
-            let starRating = "";
-            for (let i = 0; i < rating; i++) {
-                starRating += '<span class="material-icons">star</span>';
-            }
-            for (let i = rating; i < 5; i++) {
-                starRating += '<span class="material-icons">star_outline</span>';
-            }
-            reviewCard.querySelector(".star-rating").innerHTML = starRating;
+      // Format the time
+      let time = "";
+      if (data.timestamp?.toDate) {
+        time = data.timestamp.toDate().toLocaleString();
+      }
 
-            // Add the filled-in card to the page
-            hikeCardGroup.appendChild(reviewCard);
-        });
-    } catch (error) {
-        console.error("Error loading reviews:", error);
-    }
+      // Clone the template and fill in the fields
+      const reviewCard = reviewCardTemplate.content.cloneNode(true);
+
+      reviewCard.querySelector(".title").textContent = title;
+      reviewCard.querySelector(".time").textContent = time;
+      reviewCard.querySelector(".level").textContent = `Level: ${level}`;
+      reviewCard.querySelector(".season").textContent = `Season: ${season}`;
+      reviewCard.querySelector(".scrambled").textContent = `Scrambled: ${scrambled}`;
+      reviewCard.querySelector(".flooded").textContent = `Flooded: ${flooded}`;
+      reviewCard.querySelector(".description").textContent = `Description: ${description}`;
+
+      // Star rating
+      let starRating = "";
+      const safeRating = Math.max(0, Math.min(5, rating));
+      for (let i = 0; i < safeRating; i++) {
+        starRating += '<span class="material-icons">star</span>';
+      }
+      for (let i = safeRating; i < 5; i++) {
+        starRating += '<span class="material-icons">star_outline</span>';
+      }
+      reviewCard.querySelector(".star-rating").innerHTML = starRating;
+
+      reviewCardGroup.appendChild(reviewCard);
+    });
+  } catch (error) {
+    console.error("Error loading reviews:", error);
+  }
 }
 
-// Run it
 populateReviews();
