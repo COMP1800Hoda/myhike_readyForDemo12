@@ -125,4 +125,4 @@ displayCardsDynamically();
 
 readQuote("tuesday");
 
-showDashboard();
+showName();
