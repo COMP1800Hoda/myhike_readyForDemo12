@@ -45,22 +45,31 @@ async function seedHikes() {
 // Call the seeding function when the main.html page loads.
 seedHikes();
 
-function showDashboard() {
-    const nameElement = document.getElementById("name-goes-here"); // the <h1> element to display "Hello, {name}"
+function showName() {
 
+    // Get the DOM element where the user's name will be displayed
+    // Example: <h1 id="name-goes-here"></h1>
+    const nameElement = document.getElementById("name-goes-here");
+
+    // Wait until Firebase Auth finishes checking the user's auth state
     onAuthReady(async (user) => {
+
+        // If no user is logged in, redirect to the login page
         if (!user) {
-            // If no user is signed in → redirect back to login page.
             location.href = "index.html";
-            return;
+            return; // Stop execution
         }
 
+        // Get the user's Firestore document from the "users" collection
+        // Document ID is the user's unique UID
         const userDoc = await getDoc(doc(db, "users", user.uid));
-        const name = userDoc.exists()
-            ? userDoc.data().name
-            : user.displayName || user.email;
 
-        // Update the welcome message with their name/email.
+        // Determine which name to display:
+        const name = userDoc.exists()            // 1️⃣ Use Firestore name if document exists
+            ? userDoc.data().name                // 2️⃣ Otherwise fallback to Firebase displayName
+            : user.displayName || user.email;    // 3️⃣ Otherwise fallback to email
+
+       // If the DOM element exists, update its text using a template literal to add "!"
         if (nameElement) {
             nameElement.textContent = `${name}!`;
         }
